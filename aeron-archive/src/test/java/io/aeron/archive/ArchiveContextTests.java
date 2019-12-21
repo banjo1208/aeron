@@ -15,12 +15,13 @@
  */
 package io.aeron.archive;
 
-import io.aeron.archive.client.AeronArchive.Context;
+import io.aeron.archive.Archive.Context;
 import org.junit.jupiter.api.Test;
 
-import static io.aeron.archive.client.AeronArchive.Configuration.RECORDING_CRC_ENABLED_PROP_NAME;
-import static io.aeron.archive.client.AeronArchive.Configuration.REPLAY_CRC_ENABLED_PROP_NAME;
-import static org.junit.jupiter.api.Assertions.*;
+import static io.aeron.archive.Archive.Configuration.RECORDING_CRC_ENABLED_PROP_NAME;
+import static io.aeron.archive.Archive.Configuration.REPLAY_CRC_ENABLED_PROP_NAME;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ArchiveContextTests
 {
@@ -68,6 +69,7 @@ public class ArchiveContextTests
         context.recordingCrcEnabled(true);
         assertTrue(context.recordingCrcEnabled());
     }
+
     @Test
     void replayCrcEnabledDefaultValue()
     {
