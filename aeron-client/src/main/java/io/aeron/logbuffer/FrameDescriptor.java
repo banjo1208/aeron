@@ -260,6 +260,18 @@ public class FrameDescriptor
     }
 
     /**
+     * Get the term id of a frame from the header.
+     *
+     * @param buffer     containing the frame.
+     * @param termOffset at which a frame begins.
+     * @return the value for the term id field.
+     */
+    public static int frameTermId(final UnsafeBuffer buffer, final int termOffset)
+    {
+        return buffer.getInt(termIdOffset(termOffset), LITTLE_ENDIAN);
+    }
+
+    /**
      * Get the session id of a frame from the header.
      *
      * @param buffer     containing the frame.
