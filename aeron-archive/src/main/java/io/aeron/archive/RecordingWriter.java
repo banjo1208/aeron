@@ -54,7 +54,7 @@ class RecordingWriter implements BlockHandler
     private final boolean crcEnabled;
     private final FileChannel archiveDirChannel;
     private final File archiveDir;
-    private final FrameCRC frameCRC;
+    private final FrameCRC crc;
 
     private long segmentBasePosition;
     private int segmentOffset;
@@ -79,7 +79,7 @@ class RecordingWriter implements BlockHandler
         forceMetadata = ctx.fileSyncLevel() > 1;
 
         crcEnabled = ctx.recordingCrcEnabled();
-        frameCRC = crcEnabled ? new FrameCRC() : null;
+        crc = crcEnabled ? new FrameCRC() : null;
 
         final int termLength = image.termBufferLength();
         final long joinPosition = image.joinPosition();
@@ -101,9 +101,8 @@ class RecordingWriter implements BlockHandler
             {
                 // Cast to UnsafeBuffer is safe, because BlockHandler is internal API which is always invoked with an
                 // instance of UnsafeBuffer which is used for performance reasons (i.e. to avoid invokeinterface calls)
-                frameCRC.compute(
-                    (UnsafeBuffer)termBuffer, termOffset, length,
-                    (buffer, frameOffset, frameLength, crc) -> frameSessionId(buffer, frameOffset, crc));
+                crc.forEach((UnsafeBuffer)termBuffer, termOffset, length,
+                    (buffer, frameOffset, frameLength, checksum) -> frameSessionId(buffer, frameOffset, checksum));
             }
 
             do
