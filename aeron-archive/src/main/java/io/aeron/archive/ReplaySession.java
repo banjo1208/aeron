@@ -37,9 +37,11 @@ import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
 import java.util.EnumSet;
+import java.util.zip.CRC32;
 
 import static io.aeron.archive.Archive.Configuration.MAX_BLOCK_LENGTH;
 import static io.aeron.archive.Archive.segmentFileName;
+import static io.aeron.archive.Crc32Helper.crc32;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.logbuffer.FrameDescriptor.*;
 import static io.aeron.protocol.DataHeaderFlyweight.RESERVED_VALUE_OFFSET;
@@ -87,7 +89,7 @@ class ReplaySession implements Session, AutoCloseable
     private final int segmentLength;
 
     private final boolean performCrc;
-    private final FrameCRC crc;
+    private final CRC32 crc32;
 
     private final BufferClaim bufferClaim = new BufferClaim();
     private final ExclusivePublication publication;
@@ -139,7 +141,7 @@ class ReplaySession implements Session, AutoCloseable
         this.stopPosition = null == limitPosition ? recordingSummary.stopPosition : limitPosition.get();
 
         this.performCrc = performCrc;
-        crc = performCrc ? new FrameCRC() : null;
+        crc32 = performCrc ? new CRC32() : null;
 
         final long fromPosition = position == NULL_POSITION ? startPosition : position;
         final long maxLength = null == limitPosition ? stopPosition - fromPosition : Long.MAX_VALUE - fromPosition;
@@ -394,7 +396,7 @@ class ReplaySession implements Session, AutoCloseable
 
     private void doFrameCrc(final int frameOffset, final int alignedLength)
     {
-        final int checksum = crc.checksum(replayBuffer.byteBuffer(), frameOffset, alignedLength);
+        final int checksum = crc32(crc32, replayBuffer.byteBuffer(), frameOffset, alignedLength);
         final int recordedChecksum = frameSessionId(replayBuffer, frameOffset);
         if (checksum != recordedChecksum)
         {
