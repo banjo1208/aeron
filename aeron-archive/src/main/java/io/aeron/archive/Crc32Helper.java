@@ -18,10 +18,8 @@ package io.aeron.archive;
 import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
-import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
-
 /**
- * Provides API to compute CRC for a data frame in a buffer.
+ * Provides API to compute CRC for a data in a buffer.
  */
 final class Crc32Helper
 {
@@ -30,23 +28,21 @@ final class Crc32Helper
     }
 
     /**
-     * Compute CRC over the frame's payload.
+     * Compute CRC over the buffer's payload.
      *
-     * @param state       container for the CRC state.
-     * @param buffer      containing the frame.
-     * @param frameOffset at which frame begins, including any headers.
-     * @param frameLength of the frame in bytes, including any frame headers that is aligned up to
-     *                    {@link io.aeron.logbuffer.FrameDescriptor#FRAME_ALIGNMENT}.
+     * @param state  container for the CRC state.
+     * @param buffer containing the data.
+     * @param offset at which data begins.
+     * @param length of the data in bytes.
      * @return computed CRC checksum
      * @throws NullPointerException     if {@code null == state} or {@code null == buffer}
      * @throws IllegalArgumentException if {@code frameOffset} and/or {@code frameLength} are out of range
      */
-    public static int crc32(final CRC32 state, final ByteBuffer buffer, final int frameOffset, final int frameLength)
+    public static int crc32(final CRC32 state, final ByteBuffer buffer, final int offset, final int length)
     {
         final int position = buffer.position();
         final int limit = buffer.limit();
-        buffer.limit(frameOffset + frameLength); // end of the frame plus alignment
-        buffer.position(frameOffset + HEADER_LENGTH); // skip the frame header
+        buffer.limit(offset + length).position(offset);
         state.reset();
         state.update(buffer);
         final int checksum = (int)state.getValue();

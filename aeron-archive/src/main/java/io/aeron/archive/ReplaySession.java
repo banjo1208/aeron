@@ -44,6 +44,7 @@ import static io.aeron.archive.Archive.segmentFileName;
 import static io.aeron.archive.Crc32Helper.crc32;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.logbuffer.FrameDescriptor.*;
+import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
 import static io.aeron.protocol.DataHeaderFlyweight.RESERVED_VALUE_OFFSET;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.nio.file.StandardOpenOption.READ;
@@ -353,7 +354,7 @@ class ReplaySession implements Session, AutoCloseable
                 {
                     if (performCrc)
                     {
-                        doFrameCrc(frameOffset, alignedLength);
+                        performCrc(frameOffset, alignedLength);
                     }
                     bufferClaim
                         .flags(frameFlags(replayBuffer, frameOffset))
@@ -394,9 +395,10 @@ class ReplaySession implements Session, AutoCloseable
         return fragments;
     }
 
-    private void doFrameCrc(final int frameOffset, final int alignedLength)
+    private void performCrc(final int frameOffset, final int alignedLength)
     {
-        final int checksum = crc32(crc32, replayBuffer.byteBuffer(), frameOffset, alignedLength);
+        final int checksum = crc32(
+            crc32, replayBuffer.byteBuffer(), frameOffset + HEADER_LENGTH, alignedLength - HEADER_LENGTH);
         final int recordedChecksum = frameSessionId(replayBuffer, frameOffset);
         if (checksum != recordedChecksum)
         {

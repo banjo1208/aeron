@@ -208,6 +208,7 @@ public class ReplaySessionTest
         final long correlationId = 1L;
 
         try (ReplaySession replaySession = replaySession(
+            RECORDING_POSITION,
             FRAME_LENGTH,
             correlationId,
             false,
@@ -242,23 +243,15 @@ public class ReplaySessionTest
     public void shouldNotReplayPartialUnalignedDataFromFile()
     {
         final long correlationId = 1L;
-        final ReplaySession replaySession = new ReplaySession(
+        final ReplaySession replaySession = replaySession(
             RECORDING_POSITION + 1,
             FRAME_LENGTH,
-            REPLAY_ID,
-            CONNECT_TIMEOUT_MS,
             correlationId,
             false,
-            mockControlSession,
-            proxy,
-            replayBuffer,
-            mockCatalog,
-            archiveDir,
-            null,
-            epochClock,
             mockReplayPub,
-            recordingSummary,
-            recordingPositionCounter);
+            mockControlSession,
+            recordingPositionCounter
+        );
 
         replaySession.doWork();
         assertEquals(ReplaySession.State.DONE, replaySession.state());
@@ -275,6 +268,7 @@ public class ReplaySessionTest
         final long correlationId = 1L;
 
         try (ReplaySession replaySession = replaySession(
+            RECORDING_POSITION,
             length,
             correlationId,
             false,
@@ -315,6 +309,7 @@ public class ReplaySessionTest
         final long length = 1024L;
         final long correlationId = 1L;
         try (ReplaySession replaySession = replaySession(
+            RECORDING_POSITION,
             length,
             correlationId,
             false,
@@ -363,6 +358,7 @@ public class ReplaySessionTest
         final long correlationId = 1L;
 
         try (ReplaySession replaySession = replaySession(
+            RECORDING_POSITION,
             length,
             correlationId,
             false,
@@ -411,12 +407,13 @@ public class ReplaySessionTest
     }
 
     @Test
-    public void shouldThrowArchiveExceptionIfCrcChecksumsForDataFramesDoNotMatch()
+    public void shouldThrowArchiveExceptionIfCrcFails()
     {
         final long length = 4 * FRAME_LENGTH;
         final long correlationId = 1L;
 
         try (ReplaySession replaySession = replaySession(
+            RECORDING_POSITION + 2 * FRAME_LENGTH,
             length,
             correlationId,
             true,
@@ -448,7 +445,7 @@ public class ReplaySessionTest
     }
 
     @Test
-    public void shouldDoCrcChecksumsForEachDataFrame() throws IOException
+    public void shouldDoCrcForEachDataFrame() throws IOException
     {
         final RecordingWriter writer = new RecordingWriter(
             RECORDING_ID, START_POSITION, SEGMENT_LENGTH, mockImage, context, ARCHIVE_DIR_CHANNEL);
@@ -471,6 +468,7 @@ public class ReplaySessionTest
         final long correlationId = 1L;
 
         try (ReplaySession replaySession = replaySession(
+            RECORDING_POSITION,
             length,
             correlationId,
             true,
@@ -562,6 +560,7 @@ public class ReplaySessionTest
     }
 
     private ReplaySession replaySession(
+        final long position,
         final long length,
         final long correlationId,
         final boolean performCrc,
@@ -570,7 +569,7 @@ public class ReplaySessionTest
         final Counter recordingPositionCounter)
     {
         return new ReplaySession(
-            RECORDING_POSITION,
+            position,
             length,
             REPLAY_ID,
             CONNECT_TIMEOUT_MS,

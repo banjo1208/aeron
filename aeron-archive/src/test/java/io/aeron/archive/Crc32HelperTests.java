@@ -7,7 +7,6 @@ import java.nio.ByteBuffer;
 import java.util.zip.CRC32;
 
 import static io.aeron.archive.Crc32Helper.crc32;
-import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
 import static java.nio.ByteBuffer.allocate;
 import static java.nio.ByteBuffer.allocateDirect;
 import static java.util.Arrays.copyOf;
@@ -51,24 +50,17 @@ class Crc32HelperTests
     }
 
     @Test
-    void crc32ThrowsIllegalArgumentExceptionIfFrameOffsetPlusHeaderLengthIsGreaterThanBufferCapacity()
-    {
-        assertThrows(IllegalArgumentException.class, () -> crc32(crc32, allocate(32), 0, 5));
-    }
-
-    @Test
     void crc32ByteBuffer()
     {
         final byte[] data = new byte[20];
         fill(data, (byte)3);
         final int expectedCrc32 = computeCrc(copyOf(data, 32));
-        final ByteBuffer byteBuffer = allocate(64);
-        byteBuffer.position(HEADER_LENGTH);
+        final ByteBuffer byteBuffer = allocate(32);
         byteBuffer.put(data).flip();
 
-        assertEquals(expectedCrc32, crc32(crc32, byteBuffer, 0, 64));
+        assertEquals(expectedCrc32, crc32(crc32, byteBuffer, 0, 32));
         assertEquals(0, byteBuffer.position());
-        assertEquals(HEADER_LENGTH + 20, byteBuffer.limit());
+        assertEquals(20, byteBuffer.limit());
     }
 
     @Test
@@ -77,13 +69,13 @@ class Crc32HelperTests
         final byte[] data = new byte[32];
         fill(data, (byte)-1);
         final int expectedCrc32 = computeCrc(data);
-        final ByteBuffer byteBuffer = allocateDirect(68);
-        byteBuffer.position(4 + HEADER_LENGTH);
+        final ByteBuffer byteBuffer = allocateDirect(36);
+        byteBuffer.position(4);
         byteBuffer.put(data);
-        byteBuffer.position(4).limit(13);
+        byteBuffer.position(8).limit(13);
 
-        assertEquals(expectedCrc32, crc32(crc32, byteBuffer, 4, 64));
-        assertEquals(4, byteBuffer.position());
+        assertEquals(expectedCrc32, crc32(crc32, byteBuffer, 4, 32));
+        assertEquals(8, byteBuffer.position());
         assertEquals(13, byteBuffer.limit());
     }
 
@@ -93,14 +85,14 @@ class Crc32HelperTests
         final byte[] data = new byte[32];
         fill(data, (byte)-1);
         final ByteBuffer byteBuffer = allocateDirect(64);
-        byteBuffer.position(HEADER_LENGTH);
+        byteBuffer.position(32);
         byteBuffer.put(data);
-        assertEquals(computeCrc(data), crc32(crc32, byteBuffer, 0, 64));
+        assertEquals(computeCrc(data), crc32(crc32, byteBuffer, 32, 32));
 
         fill(data, (byte)5);
-        byteBuffer.clear().position(HEADER_LENGTH);
+        byteBuffer.clear().position(11);
         byteBuffer.put(data);
-        assertEquals(computeCrc(data), crc32(crc32, byteBuffer, 0, 64));
+        assertEquals(computeCrc(data), crc32(crc32, byteBuffer, 11, 32));
     }
 
     private int computeCrc(final byte[] payload)

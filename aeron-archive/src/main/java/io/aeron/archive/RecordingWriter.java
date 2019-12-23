@@ -18,7 +18,6 @@ package io.aeron.archive;
 import io.aeron.Image;
 import io.aeron.archive.client.ArchiveException;
 import io.aeron.logbuffer.BlockHandler;
-import io.aeron.protocol.DataHeaderFlyweight;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.LangUtil;
@@ -35,6 +34,7 @@ import java.util.zip.CRC32;
 import static io.aeron.archive.Crc32Helper.crc32;
 import static io.aeron.archive.client.AeronArchive.segmentFileBasePosition;
 import static io.aeron.logbuffer.FrameDescriptor.*;
+import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
 import static io.aeron.protocol.HeaderFlyweight.HDR_TYPE_DATA;
 import static org.agrona.BitUtil.align;
 
@@ -97,7 +97,7 @@ class RecordingWriter implements BlockHandler
         try
         {
             final boolean isPaddingFrame = termBuffer.getShort(typeOffset(termOffset)) == PADDING_FRAME_TYPE;
-            final int dataLength = isPaddingFrame ? DataHeaderFlyweight.HEADER_LENGTH : length;
+            final int dataLength = isPaddingFrame ? HEADER_LENGTH : length;
             final ByteBuffer byteBuffer = termBuffer.byteBuffer();
             byteBuffer.limit(termOffset + dataLength).position(termOffset);
 
@@ -157,7 +157,8 @@ class RecordingWriter implements BlockHandler
             final int frameType = frameType(termBuffer, frameOffset);
             if (HDR_TYPE_DATA == frameType)
             {
-                final int checksum = crc32(crc32, buffer, frameOffset, alignedLength);
+                final int checksum =
+                    crc32(crc32, buffer, frameOffset + HEADER_LENGTH, alignedLength - HEADER_LENGTH);
                 frameSessionId(termBuffer, frameOffset, checksum);
             }
             frameOffset += alignedLength;

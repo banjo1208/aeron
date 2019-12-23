@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 import java.util.zip.CRC32;
 
 import static io.aeron.archive.Archive.segmentFileName;
+import static io.aeron.archive.Crc32Helper.crc32;
 import static io.aeron.archive.client.ArchiveException.GENERIC;
 import static io.aeron.logbuffer.FrameDescriptor.*;
 import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
@@ -264,15 +265,16 @@ class RecordingWriterTests
             1, 0, SEGMENT_LENGTH, image, ctx, null);
         recordingWriter.init();
         final UnsafeBuffer termBuffer = new UnsafeBuffer(allocate(512));
-        final byte[] data = new byte[32];
-        fill(data, (byte)99);
-        frameType(termBuffer, 0, HDR_TYPE_DATA);
-        frameTermId(termBuffer, 0, 18);
-        frameLengthOrdered(termBuffer, 0, 64);
-        frameSessionId(termBuffer, 0, 5);
-        termBuffer.putBytes(HEADER_LENGTH, data);
+        frameType(termBuffer, 96, HDR_TYPE_DATA);
+        frameTermId(termBuffer, 96, 96);
+        frameLengthOrdered(termBuffer, 96, 64);
+        termBuffer.setMemory(96 + HEADER_LENGTH, 32, (byte)96);
+        frameType(termBuffer, 160, HDR_TYPE_DATA);
+        frameTermId(termBuffer, 160, 160);
+        frameLengthOrdered(termBuffer, 160, 288);
+        termBuffer.setMemory(160 + HEADER_LENGTH, 256, (byte)160);
 
-        recordingWriter.onBlock(termBuffer, 0, 64, -1, -1);
+        recordingWriter.onBlock(termBuffer, 96, 352, -1, -1);
 
         recordingWriter.close();
         final File segmentFile = segmentFile(1, 0);
@@ -281,12 +283,20 @@ class RecordingWriterTests
         final UnsafeBuffer fileBuffer = new UnsafeBuffer();
         fileBuffer.wrap(readAllBytes(segmentFile.toPath()));
         assertEquals(HDR_TYPE_DATA, frameType(fileBuffer, 0));
-        assertEquals(18, frameTermId(fileBuffer, 0));
+        assertEquals(96, frameTermId(fileBuffer, 0));
         assertEquals(64, frameLength(fileBuffer, 0));
-        final CRC32 crc32 = new CRC32();
-        crc32.update(data);
-        final int crc = (int)crc32.getValue();
-        assertEquals(crc, frameSessionId(fileBuffer, 0));
+        final CRC32 state = new CRC32();
+        assertEquals(
+            crc32(state, termBuffer.byteBuffer(), 96 + HEADER_LENGTH, 32),
+            frameSessionId(fileBuffer, 0)
+        );
+        assertEquals(HDR_TYPE_DATA, frameType(fileBuffer, 64));
+        assertEquals(160, frameTermId(fileBuffer, 64));
+        assertEquals(288, frameLength(fileBuffer, 64));
+        assertEquals(
+            crc32(state, termBuffer.byteBuffer(), 160 + HEADER_LENGTH, 256),
+            frameSessionId(fileBuffer, 64)
+        );
     }
 
     private static Stream<Arguments> nonDataFrames()
