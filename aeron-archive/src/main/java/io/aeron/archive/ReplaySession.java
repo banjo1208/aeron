@@ -353,7 +353,7 @@ class ReplaySession implements Session, AutoCloseable
                 {
                     if (crcEnabled)
                     {
-                        doCrc(frameOffset, alignedLength);
+                        applyCrc(frameOffset, alignedLength);
                     }
                     bufferClaim
                         .flags(frameFlags(replayBuffer, frameOffset))
@@ -394,7 +394,7 @@ class ReplaySession implements Session, AutoCloseable
         return fragments;
     }
 
-    private void doCrc(final int frameOffset, final int alignedLength)
+    private void applyCrc(final int frameOffset, final int alignedLength)
     {
         final int checksum = crc32(
             0, replayBufferAddress, frameOffset + HEADER_LENGTH, alignedLength - HEADER_LENGTH);
