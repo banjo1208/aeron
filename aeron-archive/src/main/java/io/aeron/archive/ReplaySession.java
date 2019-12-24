@@ -46,7 +46,7 @@ import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
 import static io.aeron.protocol.DataHeaderFlyweight.RESERVED_VALUE_OFFSET;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.nio.file.StandardOpenOption.READ;
-import static org.agrona.CrcUtil.crc32DirectByteBuffer;
+import static org.agrona.Checksums.crc32;
 
 /**
  * A replay session with a client which works through the required request response flow and streaming of recorded data.
@@ -396,8 +396,8 @@ class ReplaySession implements Session, AutoCloseable
 
     private void performCrc(final int frameOffset, final int alignedLength)
     {
-        final int checksum = crc32DirectByteBuffer(0, replayBufferAddress, frameOffset + HEADER_LENGTH,
-            alignedLength - HEADER_LENGTH);
+        final int checksum = crc32(
+            0, replayBufferAddress, frameOffset + HEADER_LENGTH, alignedLength - HEADER_LENGTH);
         final int recordedChecksum = frameSessionId(replayBuffer, frameOffset);
         if (checksum != recordedChecksum)
         {

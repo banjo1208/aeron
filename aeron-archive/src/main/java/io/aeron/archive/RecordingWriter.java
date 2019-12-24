@@ -35,7 +35,7 @@ import static io.aeron.logbuffer.FrameDescriptor.*;
 import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
 import static io.aeron.protocol.HeaderFlyweight.HDR_TYPE_DATA;
 import static org.agrona.BitUtil.align;
-import static org.agrona.CrcUtil.crc32DirectByteBuffer;
+import static org.agrona.Checksums.crc32;
 
 /**
  * Responsible for writing out a recording into the file system. A recording has descriptor file and a set of data files
@@ -154,8 +154,8 @@ class RecordingWriter implements BlockHandler
             final int frameType = frameType(termBuffer, frameOffset);
             if (HDR_TYPE_DATA == frameType)
             {
-                final int checksum = crc32DirectByteBuffer(0, address, frameOffset + HEADER_LENGTH,
-                    alignedLength - HEADER_LENGTH);
+                final int checksum = crc32(
+                    0, address, frameOffset + HEADER_LENGTH, alignedLength - HEADER_LENGTH);
                 frameSessionId(termBuffer, frameOffset, checksum);
             }
             frameOffset += alignedLength;

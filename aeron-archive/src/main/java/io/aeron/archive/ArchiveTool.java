@@ -57,7 +57,7 @@ import static java.util.Collections.emptySet;
 import static java.util.stream.Collectors.toMap;
 import static org.agrona.BitUtil.align;
 import static org.agrona.BufferUtil.allocateDirectAligned;
-import static org.agrona.CrcUtil.crc32DirectByteBuffer;
+import static org.agrona.Checksums.crc32;
 
 /**
  * Tool for inspecting and performing administrative tasks on an {@link Archive} and its contents which is described in
@@ -850,7 +850,7 @@ public class ArchiveTool
 
                 if (performCrc && HDR_TYPE_DATA == frameType)
                 {
-                    final int checksum = crc32DirectByteBuffer(0, bufferAddress, 0, dataLength);
+                    final int checksum = crc32(0, bufferAddress, 0, dataLength);
                     if (checksum != sessionId)
                     {
                         out.println("(recordingId=" + recordingId + ", file=" + file + ") ERR: CRC failed " +
