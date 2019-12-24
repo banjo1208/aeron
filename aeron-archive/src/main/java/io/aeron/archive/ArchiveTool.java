@@ -40,11 +40,9 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
-import java.util.zip.CRC32;
 
 import static io.aeron.archive.ArchiveTool.SegmentFileOption.*;
 import static io.aeron.archive.Catalog.*;
-import static io.aeron.archive.Crc32Helper.crc32;
 import static io.aeron.archive.MigrationUtils.fullVersionString;
 import static io.aeron.archive.ReplaySession.isInvalidHeader;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
@@ -59,6 +57,7 @@ import static java.util.Collections.emptySet;
 import static java.util.stream.Collectors.toMap;
 import static org.agrona.BitUtil.align;
 import static org.agrona.BufferUtil.allocateDirectAligned;
+import static org.agrona.CrcUtil.crc32DirectByteBuffer;
 
 /**
  * Tool for inspecting and performing administrative tasks on an {@link Archive} and its contents which is described in
@@ -695,7 +694,6 @@ public class ArchiveTool
         if (maxSegmentFile != null)
         {
             final int streamId = decoder.streamId();
-            final CRC32 crc32 = new CRC32();
             final boolean performCrc = options.contains(PERFORM_CRC);
             if (options.contains(VALIDATE_ALL))
             {
@@ -712,8 +710,8 @@ public class ArchiveTool
                         streamId,
                         decoder.initialTermId(),
                         performCrc,
-                        headerFlyweight,
-                        crc32))
+                        headerFlyweight
+                    ))
                     {
                         headerEncoder.valid(INVALID);
                         return;
@@ -731,8 +729,8 @@ public class ArchiveTool
                 streamId,
                 decoder.initialTermId(),
                 performCrc,
-                headerFlyweight,
-                crc32))
+                headerFlyweight
+            ))
             {
                 headerEncoder.valid(INVALID);
                 return;
@@ -795,8 +793,7 @@ public class ArchiveTool
         final int streamId,
         final int initialTermId,
         final boolean performCrc,
-        final DataHeaderFlyweight headerFlyweight,
-        final CRC32 crc32)
+        final DataHeaderFlyweight headerFlyweight)
     {
         final File file = new File(archiveDir, fileName);
         try (FileChannel channel = FileChannel.open(file.toPath(), READ))
@@ -806,7 +803,10 @@ public class ArchiveTool
             final long startTermOffset = startPosition & (termLength - 1);
             final long startTermBasePosition = startPosition - startTermOffset;
             final long segmentFileBasePosition = parseSegmentFilePosition(fileName);
+
             final ByteBuffer byteBuffer = headerFlyweight.byteBuffer();
+            final long bufferAddress = headerFlyweight.addressOffset();
+
             long fileOffset = segmentFileBasePosition == startTermBasePosition ? startTermOffset : 0;
             long position = segmentFileBasePosition + fileOffset;
             do
@@ -850,7 +850,7 @@ public class ArchiveTool
 
                 if (performCrc && HDR_TYPE_DATA == frameType)
                 {
-                    final int checksum = crc32(crc32, byteBuffer, 0, dataLength);
+                    final int checksum = crc32DirectByteBuffer(0, bufferAddress, 0, dataLength);
                     if (checksum != sessionId)
                     {
                         out.println("(recordingId=" + recordingId + ", file=" + file + ") ERR: CRC failed " +
