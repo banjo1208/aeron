@@ -33,7 +33,7 @@ import static java.nio.file.Files.delete;
 import static java.nio.file.Files.readAllBytes;
 import static java.util.Arrays.fill;
 import static org.agrona.BufferUtil.allocateDirectAligned;
-import static org.agrona.CrcUtil.crc32DirectByteBuffer;
+import static org.agrona.Checksums.crc32;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -286,14 +286,14 @@ class RecordingWriterTests
         assertEquals(96, frameTermId(fileBuffer, 0));
         assertEquals(64, frameLength(fileBuffer, 0));
         assertEquals(
-            crc32DirectByteBuffer(0, termBuffer.addressOffset(), 96 + HEADER_LENGTH, 32),
+            crc32(0, termBuffer.addressOffset(), 96 + HEADER_LENGTH, 32),
             frameSessionId(fileBuffer, 0)
         );
         assertEquals(HDR_TYPE_DATA, frameType(fileBuffer, 64));
         assertEquals(160, frameTermId(fileBuffer, 64));
         assertEquals(288, frameLength(fileBuffer, 64));
         assertEquals(
-            crc32DirectByteBuffer(0, termBuffer.addressOffset(), 160 + HEADER_LENGTH, 256),
+            crc32(0, termBuffer.addressOffset(), 160 + HEADER_LENGTH, 256),
             frameSessionId(fileBuffer, 64)
         );
     }
