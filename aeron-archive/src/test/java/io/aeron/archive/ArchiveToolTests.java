@@ -874,6 +874,54 @@ class ArchiveToolTests
         }
     }
 
+    @Test
+    void checksumLastSegmentFile()
+    {
+        checksum(out, archiveDir, false, epochClock);
+
+        verify(out, archiveDir, EnumSet.allOf(VerifyOption.class), epochClock, (file) -> false);
+        try (Catalog catalog = openCatalogReadOnly(archiveDir, epochClock))
+        {
+            assertRecording(catalog, validRecording0, VALID, 0, TERM_LENGTH + 64, 15, 100,
+                0, 2, "ch2", "src2");
+            assertRecording(catalog, validRecording1, VALID, 1024, 1024, 16, 200,
+                0, 2, "ch2", "src2");
+            assertRecording(catalog, validRecording2, VALID, TERM_LENGTH * 3 + 96, TERM_LENGTH * 3 + 96,
+                17, 300, 0, 2, "ch2", "src2");
+            assertRecording(catalog, validRecording3, INVALID, 7 * TERM_LENGTH + 96, 7 * TERM_LENGTH + 128,
+                18, NULL_TIMESTAMP, 7, 13, "ch2", "src2");
+            assertRecording(catalog, validRecording4, INVALID, 21 * TERM_LENGTH + (TERM_LENGTH - 64),
+                22 * TERM_LENGTH + 992, 19, 1, -25, 7, "ch2", "src2");
+            assertRecording(catalog, validRecording5, VALID, 0, 64 + PAGE_SIZE, 20, 777,
+                0, 20, "ch2", "src2");
+            assertRecording(catalog, validRecording6, VALID, 352, 960, 21, 400, 0, 6, "ch2", "src2");
+        }
+    }
+
+    @Test
+    void checksumAllSegmentFile()
+    {
+        checksum(out, archiveDir, true, epochClock);
+
+        verify(out, archiveDir, EnumSet.allOf(VerifyOption.class), epochClock, (file) -> false);
+        try (Catalog catalog = openCatalogReadOnly(archiveDir, epochClock))
+        {
+            assertRecording(catalog, validRecording0, VALID, 0, TERM_LENGTH + 64, 15, 100,
+                0, 2, "ch2", "src2");
+            assertRecording(catalog, validRecording1, VALID, 1024, 1024, 16, 200,
+                0, 2, "ch2", "src2");
+            assertRecording(catalog, validRecording2, VALID, TERM_LENGTH * 3 + 96, TERM_LENGTH * 3 + 96,
+                17, 300, 0, 2, "ch2", "src2");
+            assertRecording(catalog, validRecording3, VALID, 7 * TERM_LENGTH + 96, 11 * TERM_LENGTH + 320,
+                18, 400, 7, 13, "ch2", "src2");
+            assertRecording(catalog, validRecording4, INVALID, 21 * TERM_LENGTH + (TERM_LENGTH - 64),
+                22 * TERM_LENGTH + 992, 19, 1, -25, 7, "ch2", "src2");
+            assertRecording(catalog, validRecording5, VALID, 0, 64 + PAGE_SIZE, 20, 777,
+                0, 20, "ch2", "src2");
+            assertRecording(catalog, validRecording6, VALID, 352, 960, 21, 500, 0, 6, "ch2", "src2");
+        }
+    }
+
     @FunctionalInterface
     interface SegmentWriter
     {

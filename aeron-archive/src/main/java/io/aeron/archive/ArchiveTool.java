@@ -156,6 +156,25 @@ public class ArchiveTool
                 }
             }
         }
+        else if (args.length >= 2 && args[1].equals("checksum"))
+        {
+            if (args.length == 2)
+            {
+                checksum(System.out, archiveDir, false);
+            }
+            else
+            {
+                if ("-a".equals(args[2]))
+                {
+                    checksum(System.out, archiveDir, true);
+                }
+                else
+                {
+                    final boolean allFiles = args.length > 3 && "-a".equals(args[3]);
+                    checksumRecording(System.out, archiveDir, Long.parseLong(args[2]), allFiles);
+                }
+            }
+        }
         else if (args.length == 2 && args[1].equals("count-entries"))
         {
             System.out.println(countEntries(archiveDir));
@@ -421,7 +440,7 @@ public class ArchiveTool
      */
     public static void checksum(final PrintStream out, final File archiveDir, final boolean allFiles)
     {
-
+        checksum(out, archiveDir, allFiles, INSTANCE);
     }
 
     /**
@@ -492,19 +511,10 @@ public class ArchiveTool
         final EpochClock epochClock,
         final ActionConfirmation<File> truncateFileOnPageStraddle)
     {
-        processRecording(archiveDir, recordingId, epochClock,
-            createVerifyEntryProcessor(out, archiveDir, options, epochClock, truncateFileOnPageStraddle));
-    }
-
-    private static void processRecording(
-        final File archiveDir,
-        final long recordingId,
-        final EpochClock epochClock,
-        final CatalogEntryProcessor entryProcessor)
-    {
         try (Catalog catalog = openCatalog(archiveDir, epochClock))
         {
-            if (!catalog.forEntry(recordingId, entryProcessor))
+            if (!catalog.forEntry(recordingId,
+                createVerifyEntryProcessor(out, archiveDir, options, epochClock, truncateFileOnPageStraddle)))
             {
                 throw new AeronException("no recording found with recordingId: " + recordingId);
             }
@@ -908,7 +918,7 @@ public class ArchiveTool
         }
         catch (final IOException ex)
         {
-            out.println("(recordingId=" + recordingId + ", file=" + file + ") ERR: failed to verify file:" + file);
+            out.println("(recordingId=" + recordingId + ", file=" + file + ") ERR: failed to verify file");
             ex.printStackTrace(out);
             return true;
         }
@@ -939,26 +949,6 @@ public class ArchiveTool
         CommonContext.printErrorLog(CncFileDescriptor.createErrorLogBuffer(cncByteBuffer, cncMetaDataBuffer), out);
     }
 
-    private static void printHelp()
-    {
-        System.out.println("Usage: <archive-dir> <command>");
-        System.out.println("  describe <optional recordingId>: prints out descriptor(s) in the catalog.");
-        System.out.println("  dump <optional data fragment limit per recording>: prints descriptor(s)");
-        System.out.println("     in the catalog and associated recorded data.");
-        System.out.println("  errors: prints errors for the archive and media driver.");
-        System.out.println("  pid: prints just PID of archive.");
-        System.out.println("  verify <optional recordingId> <optional -a> <optional -crc32>: verifies descriptor(s)" +
-            " in the catalog");
-        System.out.println("     checking recording files availability and contents. Only the last segment file is");
-        System.out.println("     validated unless flag 'all' is specified, i.e. meaning validate all segment files.");
-        System.out.println("     In order to perform CRC for each data frame specify the 'crc' flag.");
-        System.out.println("     Faulty entries are marked as unusable.");
-        System.out.println("  count-entries: queries the number of recording entries in the catalog.");
-        System.out.println("  max-entries <optional number of entries>: gets or increases the maximum number of");
-        System.out.println("     recording entries the catalog can store.");
-        System.out.println("  migrate: migrate archive MarkFile, Catalog, and recordings to the latest version.");
-    }
-
     static void checksumRecording(
         final PrintStream out,
         final File archiveDir,
@@ -966,9 +956,14 @@ public class ArchiveTool
         final boolean allFiles,
         final EpochClock epochClock)
     {
-        processRecording(archiveDir, recordingId, epochClock,
-            (headerEncoder, headerDecoder, descriptorEncoder, descriptorDecoder) ->
-            checksum(out, archiveDir, allFiles, descriptorDecoder));
+        try (Catalog catalog = openCatalogReadOnly(archiveDir, epochClock))
+        {
+            if (!catalog.forEntry(recordingId, (headerEncoder, headerDecoder, descriptorEncoder, descriptorDecoder) ->
+                checksum(out, archiveDir, allFiles, descriptorDecoder)))
+            {
+                throw new AeronException("no recording found with recordingId: " + recordingId);
+            }
+        }
     }
 
     private static void checksum(
@@ -1060,9 +1055,52 @@ public class ArchiveTool
         }
         catch (final Exception ex)
         {
-            out.println("(recordingId=" + recordingId + ", file=" + file + ") ERR: failed to checksum file:" + file);
+            out.println("(recordingId=" + recordingId + ", file=" + file + ") ERR: failed to checksum");
             ex.printStackTrace(out);
             return;
         }
+    }
+
+    static void checksum(
+        final PrintStream out, final File archiveDir, final boolean allFiles, final EpochClock epochClock)
+    {
+        try (Catalog catalog = openCatalogReadOnly(archiveDir, epochClock))
+        {
+            catalog.forEach((headerEncoder, headerDecoder, descriptorEncoder, descriptorDecoder) ->
+            {
+                try
+                {
+                    checksum(out, archiveDir, allFiles, descriptorDecoder);
+                }
+                catch (final Exception ex)
+                {
+                    out.println("(recordingId=" + descriptorDecoder.recordingId() +
+                        ") ERR: failed to compute checksums");
+                    out.println(ex);
+                }
+            });
+        }
+    }
+
+    private static void printHelp()
+    {
+        System.out.println("Usage: <archive-dir> <command> (items in square brackets are optional)");
+        System.out.println("  describe [recordingId]: prints out descriptor(s) in the catalog.");
+        System.out.println("  dump [data fragment limit per recording]: prints descriptor(s)");
+        System.out.println("     in the catalog and associated recorded data.");
+        System.out.println("  errors: prints errors for the archive and media driver.");
+        System.out.println("  pid: prints just PID of archive.");
+        System.out.println("  verify [recordingId] [-a] [-crc32]: verifies descriptor(s) in the catalog");
+        System.out.println("     checking recording files availability and contents. Only the last segment file is");
+        System.out.println("     validated unless flag '-a' is specified, i.e. meaning validate all segment files.");
+        System.out.println("     In order to perform CRC for each data frame specify the '-crc32' flag.");
+        System.out.println("     Faulty entries are marked as unusable.");
+        System.out.println("  checksum [recordingId] [-a]: computes CRC-32 checksums for fragments in a segment file.");
+        System.out.println("     Only the last segment file of each recording is processed by default,");
+        System.out.println("     unless flag '-a' is specified in which case all of the segment files are processed.");
+        System.out.println("  count-entries: queries the number of recording entries in the catalog.");
+        System.out.println("  max-entries [number of entries]: gets or increases the maximum number of");
+        System.out.println("     recording entries the catalog can store.");
+        System.out.println("  migrate: migrate archive MarkFile, Catalog, and recordings to the latest version.");
     }
 }
